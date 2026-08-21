@@ -295,6 +295,29 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
   const curbLineR = new THREE.Line(railGeoRight, curbMat);
   group.add(curbLineR);
 
+  // Runway Edge Studs / Glowing LED Markers along track borders
+  const studGeo = new THREE.BoxGeometry(0.25, 0.15, 0.6);
+  const studMatL = new THREE.MeshBasicMaterial({ color: curbColor });
+  const studMatR = new THREE.MeshBasicMaterial({ color: chevronColor });
+
+  for (let i = 2; i < points.length - 2; i += 3) {
+    const pt = points[i];
+    const halfW = pt.width * 0.5 - 0.15;
+
+    // Left LED stud
+    const sL = new THREE.Mesh(studGeo, studMatL);
+    sL.position.set(pt.x - pt.binormal.x * halfW, pt.y + 0.08, pt.z - pt.binormal.z * halfW);
+    const lookT = new THREE.Vector3(pt.x + pt.tangent.x, pt.y + pt.tangent.y, pt.z + pt.tangent.z);
+    sL.lookAt(lookT);
+    group.add(sL);
+
+    // Right LED stud
+    const sR = new THREE.Mesh(studGeo, studMatR);
+    sR.position.set(pt.x + pt.binormal.x * halfW, pt.y + 0.08, pt.z + pt.binormal.z * halfW);
+    sR.lookAt(lookT);
+    group.add(sR);
+  }
+
   // Lower Energy Conduits
   const lowGeoL = new THREE.BufferGeometry();
   lowGeoL.setAttribute('position', new THREE.Float32BufferAttribute(lowerGlowL, 3));
@@ -311,7 +334,7 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
   const glowRingMat = new THREE.MeshBasicMaterial({ color: pillarGlow });
   const chevronMat = new THREE.MeshBasicMaterial({ color: chevronColor });
 
-  for (let i = 8; i < points.length - 6; i += 12) {
+  for (let i = 6; i < points.length - 6; i += 10) {
     const pt = points[i];
     const pillarHeight = pt.y + 22;
 
@@ -339,14 +362,14 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
       crossBeam.rotateY(Math.PI / 2);
       group.add(crossBeam);
 
-      // High-Gantry Trackside Floodlights
-      if (i % 24 === 0) {
+      // High-Gantry Trackside Floodlights (illuminating track surface)
+      if (i % 16 === 0) {
         const gantry = createTracksideFloodlightGantry(pt, curbColor);
         group.add(gantry);
       }
 
       // Neon Holographic Overhead Sponsor Rings
-      if (i % 48 === 0) {
+      if (i % 36 === 0) {
         const holoRing = createHoloSponsorRing(pt, levelConfig.theme);
         group.add(holoRing);
       }
@@ -374,6 +397,12 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
         trackProgress: ptIdx / points.length,
         width: pt.width,
       });
+
+      // Mid-sector elevated viewing grandstand along checkpoints
+      if (cpIdx === 2 || cpIdx === 3) {
+        const sectorStand = createSectorSpectatorStand(pt, curbColor);
+        group.add(sectorStand);
+      }
     }
   }
 
@@ -815,3 +844,59 @@ function createGrandFinalStadium(finishPt: TrackPoint, points: TrackPoint[], isF
 
   return stadium;
 }
+
+// --- Sector Mid-Track Spectator Pod ---
+function createSectorSpectatorStand(pt: TrackPoint, color: number): THREE.Group {
+  const group = new THREE.Group();
+  const metalMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 });
+  const neonMat = new THREE.MeshBasicMaterial({ color });
+
+  const crowdColors = [
+    new THREE.MeshBasicMaterial({ color: 0x38bdf8 }),
+    new THREE.MeshBasicMaterial({ color: 0xf59e0b }),
+    new THREE.MeshBasicMaterial({ color: 0x10b981 }),
+    new THREE.MeshBasicMaterial({ color: 0xec4899 }),
+  ];
+
+  // Elevated spectator deck on outside of track
+  const deckGeo = new THREE.BoxGeometry(6.5, 1.2, 16.0);
+  const deck = new THREE.Mesh(deckGeo, metalMat);
+  deck.position.set(pt.x + pt.binormal.x * 7.5, pt.y + 2.5, pt.z + pt.binormal.z * 7.5);
+  const lookTarget = new THREE.Vector3(pt.x + pt.tangent.x, pt.y + pt.tangent.y, pt.z + pt.tangent.z);
+  deck.lookAt(lookTarget);
+  deck.rotateY(Math.PI / 2);
+  group.add(deck);
+
+  // Deck Glow Trim
+  const trimGeo = new THREE.BoxGeometry(6.7, 0.25, 16.2);
+  const trim = new THREE.Mesh(trimGeo, neonMat);
+  trim.position.copy(deck.position);
+  trim.rotation.copy(deck.rotation);
+  group.add(trim);
+
+  // Spectators on deck
+  for (let r = 0; r < 2; r++) {
+    for (let c = -3; c <= 3; c++) {
+      const pMat = crowdColors[Math.abs(r * 3 + c) % crowdColors.length];
+      const person = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.7, 0.4), pMat);
+      person.position.set(
+        pt.x + pt.binormal.x * (6.5 + r * 1.5) + pt.tangent.x * (c * 1.8),
+        pt.y + 3.5,
+        pt.z + pt.binormal.z * (6.5 + r * 1.5) + pt.tangent.z * (c * 1.8)
+      );
+      group.add(person);
+    }
+  }
+
+  // Floodlight on stand
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 8, 8), metalMat);
+  pole.position.set(pt.x + pt.binormal.x * 9.5, pt.y + 6.0, pt.z + pt.binormal.z * 9.5);
+  group.add(pole);
+
+  const floodlight = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.8, 1.0), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  floodlight.position.set(pt.x + pt.binormal.x * 9.5, pt.y + 10.0, pt.z + pt.binormal.z * 9.5);
+  group.add(floodlight);
+
+  return group;
+}
+
