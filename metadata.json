@@ -1,0 +1,6 @@
+{
+  "name": "Country Marble World Championship",
+  "description": "100 Countries • 50 Levels • 1 World Champion - Automated spectator marble elimination tournament featuring 100 country racers, 50 dynamic levels, physics obstacles, and live commentary.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

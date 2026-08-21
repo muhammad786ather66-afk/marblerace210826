@@ -1,0 +1,706 @@
+import * as THREE from 'three';
+import { CheckpointGate, LevelConfig, ObstacleInstance, TrackPoint, TrackSegmentType } from '../types';
+
+export interface GeneratedTrackData {
+  points: TrackPoint[];
+  curve: THREE.CatmullRomCurve3;
+  trackMeshGroup: THREE.Group;
+  checkpoints: CheckpointGate[];
+  obstacles: ObstacleInstance[];
+  obstacleMeshes: { instance: ObstacleInstance; mesh: THREE.Object3D }[];
+  startPosition: THREE.Vector3;
+  finishPosition: THREE.Vector3;
+  totalLength: number;
+}
+
+export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
+  const group = new THREE.Group();
+  const rawWaypoints: THREE.Vector3[] = [];
+  const checkpoints: CheckpointGate[] = [];
+  const obstacles: ObstacleInstance[] = [];
+  const obstacleMeshes: { instance: ObstacleInstance; mesh: THREE.Object3D }[] = [];
+
+  // Theme Colors
+  let roadColor = 0x1e293b;
+  let curbColor = 0x38bdf8;
+  let railColor = 0x0ea5e9;
+  let supportColor = 0x0f172a;
+  let pillarGlow = 0x0284c7;
+
+  if (levelConfig.theme === 'sunset_canyon') {
+    roadColor = 0x27202b;
+    curbColor = 0xf97316;
+    railColor = 0xfb923c;
+    pillarGlow = 0xe11d48;
+  } else if (levelConfig.theme === 'cyber_circuit') {
+    roadColor = 0x0f172a;
+    curbColor = 0x22c55e;
+    railColor = 0x4ade80;
+    pillarGlow = 0x10b981;
+  } else if (levelConfig.theme === 'cosmic_stadium' || levelConfig.theme === 'gold_arena' || levelConfig.isFinal) {
+    roadColor = 0x18181b;
+    curbColor = 0xeab308;
+    railColor = 0xfacc15;
+    pillarGlow = 0xca8a04;
+  }
+
+  // Build Procedural Waypoints from Segments
+  let curPos = new THREE.Vector3(0, 5, 0);
+  let curDir = new THREE.Vector3(0, 0, 1);
+  let curAngle = 0; // heading angle in radians
+
+  rawWaypoints.push(curPos.clone());
+
+  // Starting straight grid
+  for (let i = 1; i <= 3; i++) {
+    curPos.add(curDir.clone().multiplyScalar(15));
+    rawWaypoints.push(curPos.clone());
+  }
+
+  const segments = levelConfig.segmentTypes;
+  const totalSegs = segments.length;
+
+  segments.forEach((segType, sIdx) => {
+    const progressEstimate = (sIdx + 1) / totalSegs;
+
+    switch (segType) {
+      case 'straight': {
+        curPos.add(curDir.clone().multiplyScalar(28));
+        rawWaypoints.push(curPos.clone());
+        break;
+      }
+      case 'left_curve': {
+        for (let step = 0; step < 3; step++) {
+          curAngle += (Math.PI * 0.25) / 3;
+          curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
+          curPos.add(curDir.clone().multiplyScalar(14));
+          rawWaypoints.push(curPos.clone());
+        }
+        break;
+      }
+      case 'right_curve': {
+        for (let step = 0; step < 3; step++) {
+          curAngle -= (Math.PI * 0.25) / 3;
+          curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
+          curPos.add(curDir.clone().multiplyScalar(14));
+          rawWaypoints.push(curPos.clone());
+        }
+        break;
+      }
+      case 'hairpin_left': {
+        for (let step = 0; step < 4; step++) {
+          curAngle += (Math.PI * 0.45) / 4;
+          curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
+          curPos.add(curDir.clone().multiplyScalar(11));
+          rawWaypoints.push(curPos.clone());
+        }
+        break;
+      }
+      case 'hairpin_right': {
+        for (let step = 0; step < 4; step++) {
+          curAngle -= (Math.PI * 0.45) / 4;
+          curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
+          curPos.add(curDir.clone().multiplyScalar(11));
+          rawWaypoints.push(curPos.clone());
+        }
+        break;
+      }
+      case 'ramp_up': {
+        curPos.add(curDir.clone().multiplyScalar(18)).add(new THREE.Vector3(0, 5.5, 0));
+        rawWaypoints.push(curPos.clone());
+        curPos.add(curDir.clone().multiplyScalar(18));
+        rawWaypoints.push(curPos.clone());
+        break;
+      }
+      case 'ramp_down': {
+        curPos.add(curDir.clone().multiplyScalar(18)).add(new THREE.Vector3(0, -5.5, 0));
+        rawWaypoints.push(curPos.clone());
+        curPos.add(curDir.clone().multiplyScalar(18));
+        rawWaypoints.push(curPos.clone());
+        break;
+      }
+      case 'mega_jump': {
+        // Launch crest
+        curPos.add(curDir.clone().multiplyScalar(14)).add(new THREE.Vector3(0, 4, 0));
+        rawWaypoints.push(curPos.clone());
+        // Air gap
+        curPos.add(curDir.clone().multiplyScalar(22)).add(new THREE.Vector3(0, -3, 0));
+        rawWaypoints.push(curPos.clone());
+        // Landing pad
+        curPos.add(curDir.clone().multiplyScalar(18)).add(new THREE.Vector3(0, -3, 0));
+        rawWaypoints.push(curPos.clone());
+        break;
+      }
+      case 'narrow_bridge': {
+        curPos.add(curDir.clone().multiplyScalar(32));
+        rawWaypoints.push(curPos.clone());
+        break;
+      }
+      case 'spiral_down': {
+        for (let step = 0; step < 6; step++) {
+          curAngle += (Math.PI * 0.35);
+          curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
+          curPos.add(curDir.clone().multiplyScalar(12)).add(new THREE.Vector3(0, -1.8, 0));
+          rawWaypoints.push(curPos.clone());
+        }
+        break;
+      }
+      case 'chicane': {
+        // S-turn
+        curAngle += 0.35;
+        curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
+        curPos.add(curDir.clone().multiplyScalar(16));
+        rawWaypoints.push(curPos.clone());
+
+        curAngle -= 0.7;
+        curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
+        curPos.add(curDir.clone().multiplyScalar(18));
+        rawWaypoints.push(curPos.clone());
+
+        curAngle += 0.35;
+        curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
+        curPos.add(curDir.clone().multiplyScalar(16));
+        rawWaypoints.push(curPos.clone());
+        break;
+      }
+      case 'rotating_sweepers':
+      case 'bumping_field':
+      case 'moving_platforms':
+      case 'speed_tunnel': {
+        curPos.add(curDir.clone().multiplyScalar(30));
+        rawWaypoints.push(curPos.clone());
+        break;
+      }
+      default: {
+        curPos.add(curDir.clone().multiplyScalar(25));
+        rawWaypoints.push(curPos.clone());
+      }
+    }
+  });
+
+  // Final Straightaway toward Grand Finish Arch
+  curPos.add(curDir.clone().multiplyScalar(35));
+  rawWaypoints.push(curPos.clone());
+
+  // Create Smooth Catmull-Rom Spline Curve
+  const spline = new THREE.CatmullRomCurve3(rawWaypoints, false, 'centripetal', 0.5);
+  const totalLength = spline.getLength();
+  const sampleCount = Math.max(250, Math.floor(totalLength / 2));
+  const points: TrackPoint[] = [];
+
+  for (let i = 0; i <= sampleCount; i++) {
+    const t = i / sampleCount;
+    const pt = spline.getPoint(t);
+    const tangent = spline.getTangent(t).normalize();
+    const up = new THREE.Vector3(0, 1, 0);
+    const binormal = new THREE.Vector3().crossVectors(tangent, up).normalize();
+    const normal = new THREE.Vector3().crossVectors(binormal, tangent).normalize();
+
+    points.push({
+      x: pt.x,
+      y: pt.y,
+      z: pt.z,
+      tangent: { x: tangent.x, y: tangent.y, z: tangent.z },
+      normal: { x: normal.x, y: normal.y, z: normal.z },
+      binormal: { x: binormal.x, y: binormal.y, z: binormal.z },
+      width: 5.4,
+      hasRails: true,
+    });
+  }
+
+  // --- Build 3D Road Mesh Ribbon ---
+  const roadGeo = new THREE.BufferGeometry();
+  const vertices: number[] = [];
+  const normals: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+
+  const railGeoLeft = new THREE.BufferGeometry();
+  const railGeoRight = new THREE.BufferGeometry();
+  const railVertsL: number[] = [];
+  const railVertsR: number[] = [];
+
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    const halfW = p.width * 0.5;
+
+    // Road left & right edge
+    const lx = p.x - p.binormal.x * halfW;
+    const ly = p.y - p.binormal.y * halfW;
+    const lz = p.z - p.binormal.z * halfW;
+
+    const rx = p.x + p.binormal.x * halfW;
+    const ry = p.y + p.binormal.y * halfW;
+    const rz = p.z + p.binormal.z * halfW;
+
+    vertices.push(lx, ly, lz);
+    normals.push(p.normal.x, p.normal.y, p.normal.z);
+    uvs.push(0, i / 5);
+
+    vertices.push(rx, ry, rz);
+    normals.push(p.normal.x, p.normal.y, p.normal.z);
+    uvs.push(1, i / 5);
+
+    // Glowing guard rails
+    railVertsL.push(lx, ly + 0.35, lz);
+    railVertsR.push(rx, ry + 0.35, rz);
+
+    if (i < points.length - 1) {
+      const v0 = i * 2;
+      const v1 = i * 2 + 1;
+      const v2 = (i + 1) * 2;
+      const v3 = (i + 1) * 2 + 1;
+
+      indices.push(v0, v1, v2);
+      indices.push(v1, v3, v2);
+    }
+  }
+
+  roadGeo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  roadGeo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  roadGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  roadGeo.setIndex(indices);
+
+  const roadMat = new THREE.MeshStandardMaterial({
+    color: roadColor,
+    roughness: 0.4,
+    metalness: 0.3,
+    side: THREE.DoubleSide,
+  });
+  const roadMesh = new THREE.Mesh(roadGeo, roadMat);
+  roadMesh.receiveShadow = true;
+  group.add(roadMesh);
+
+  // Guard rails line / tube
+  const railMat = new THREE.MeshBasicMaterial({ color: railColor });
+  const curbMat = new THREE.MeshStandardMaterial({ color: curbColor, roughness: 0.2, emissive: curbColor, emissiveIntensity: 0.3 });
+
+  // Neon Curbs (Left & Right)
+  const curbGeoL = new THREE.BufferGeometry();
+  curbGeoL.setAttribute('position', new THREE.Float32BufferAttribute(railVertsL, 3));
+  const curbLineL = new THREE.Line(curbGeoL, railMat);
+  group.add(curbLineL);
+
+  const curbGeoR = new THREE.BufferGeometry();
+  curbGeoR.setAttribute('position', new THREE.Float32BufferAttribute(railVertsR, 3));
+  const curbLineR = new THREE.Line(curbGeoR, railMat);
+  group.add(curbLineR);
+
+  // Pillars / Elevated supports beneath track
+  const pillarMat = new THREE.MeshStandardMaterial({ color: supportColor, roughness: 0.6 });
+  const glowRingMat = new THREE.MeshBasicMaterial({ color: pillarGlow });
+
+  for (let i = 10; i < points.length - 5; i += 18) {
+    const pt = points[i];
+    if (pt.y > 1.5) {
+      const pillarGeo = new THREE.CylinderGeometry(0.5, 0.7, pt.y + 10, 16);
+      const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+      pillar.position.set(pt.x, (pt.y - 10) / 2, pt.z);
+      pillar.castShadow = true;
+      group.add(pillar);
+
+      // Glowing collar
+      const ringGeo = new THREE.TorusGeometry(0.75, 0.08, 8, 16);
+      const ring = new THREE.Mesh(ringGeo, glowRingMat);
+      ring.position.set(pt.x, pt.y - 0.5, pt.z);
+      ring.rotation.x = Math.PI * 0.5;
+      group.add(ring);
+    }
+  }
+
+  // --- Place Checkpoint Gates (4-6 Checkpoints) ---
+  const checkpointInterval = Math.floor(points.length / 5);
+  for (let cpIdx = 1; cpIdx <= 4; cpIdx++) {
+    const ptIdx = cpIdx * checkpointInterval;
+    if (ptIdx < points.length) {
+      const pt = points[ptIdx];
+      const gateObj = createCheckpointArch(cpIdx, 4, curbColor);
+      gateObj.position.set(pt.x, pt.y, pt.z);
+
+      const lookTarget = new THREE.Vector3(pt.x + pt.tangent.x, pt.y + pt.tangent.y, pt.z + pt.tangent.z);
+      gateObj.lookAt(lookTarget);
+      group.add(gateObj);
+
+      checkpoints.push({
+        index: cpIdx,
+        totalCheckpoints: 4,
+        position: { x: pt.x, y: pt.y, z: pt.z },
+        rotation: { x: gateObj.rotation.x, y: gateObj.rotation.y, z: gateObj.rotation.z },
+        trackProgress: ptIdx / points.length,
+        width: pt.width,
+      });
+    }
+  }
+
+  // --- Start Gate & Finish Line Gate ---
+  const startPt = points[2];
+  const startArch = createStartGate(levelConfig);
+  startArch.position.set(startPt.x, startPt.y, startPt.z);
+  startArch.lookAt(startPt.x + startPt.tangent.x, startPt.y + startPt.tangent.y, startPt.z + startPt.tangent.z);
+  group.add(startArch);
+
+  const finishPt = points[points.length - 3];
+  const finishArch = createFinishArch(levelConfig, curbColor);
+  finishArch.position.set(finishPt.x, finishPt.y, finishPt.z);
+  finishArch.lookAt(finishPt.x + finishPt.tangent.x, finishPt.y + finishPt.tangent.y, finishPt.z + finishPt.tangent.z);
+  group.add(finishArch);
+
+  // If Final Level (Level 50), add full grand stadium audience, floodlights, and fireworks cannons!
+  if (levelConfig.isFinal) {
+    const stadium = createGrandFinalStadium(finishPt, points);
+    group.add(stadium);
+  }
+
+  // --- Place Dynamic Obstacles Based on Level Segments ---
+  segments.forEach((segType, idx) => {
+    const segT = (idx + 0.5) / totalSegs;
+    const ptIdx = Math.floor(segT * (points.length - 20)) + 10;
+    const pt = points[ptIdx];
+    if (!pt) return;
+
+    if (segType === 'rotating_sweepers') {
+      const sweeper = createSweeperObstacle();
+      sweeper.mesh.position.set(pt.x, pt.y + 0.8, pt.z);
+      group.add(sweeper.mesh);
+      obstacles.push({
+        id: `sweeper_${idx}`,
+        type: 'sweeper',
+        position: { x: pt.x, y: pt.y + 0.8, z: pt.z },
+        rotation: { x: 0, y: 0, z: 0 },
+        scale: { x: 1, y: 1, z: 1 },
+        trackProgress: ptIdx / points.length,
+        active: true,
+        speed: 2.2,
+        phase: Math.random() * Math.PI,
+      });
+      obstacleMeshes.push({ instance: obstacles[obstacles.length - 1], mesh: sweeper.mesh });
+    } else if (segType === 'bumping_field') {
+      // 3 Pinball Bumpers
+      for (let b = -1; b <= 1; b++) {
+        const bumper = createBumperObstacle();
+        const bx = pt.x + pt.binormal.x * (b * 1.5);
+        const by = pt.y + 0.4;
+        const bz = pt.z + pt.binormal.z * (b * 1.5);
+        bumper.position.set(bx, by, bz);
+        group.add(bumper);
+
+        obstacles.push({
+          id: `bumper_${idx}_${b}`,
+          type: 'bumper',
+          position: { x: bx, y: by, z: bz },
+          rotation: { x: 0, y: 0, z: 0 },
+          scale: { x: 1, y: 1, z: 1 },
+          trackProgress: ptIdx / points.length,
+          active: true,
+          speed: 1.0,
+          phase: 0,
+        });
+        obstacleMeshes.push({ instance: obstacles[obstacles.length - 1], mesh: bumper });
+      }
+    } else if (segType === 'speed_tunnel') {
+      // 3 Turbo Booster Rings
+      for (let r = 0; r < 3; r++) {
+        const ringPt = points[ptIdx + r * 3];
+        if (!ringPt) continue;
+        const booster = createSpeedBoosterRing();
+        booster.position.set(ringPt.x, ringPt.y + 1.2, ringPt.z);
+        booster.lookAt(ringPt.x + ringPt.tangent.x, ringPt.y + ringPt.tangent.y, ringPt.z + ringPt.tangent.z);
+        group.add(booster);
+
+        obstacles.push({
+          id: `boost_${idx}_${r}`,
+          type: 'boost_pad',
+          position: { x: ringPt.x, y: ringPt.y + 1.2, z: ringPt.z },
+          rotation: { x: booster.rotation.x, y: booster.rotation.y, z: booster.rotation.z },
+          scale: { x: 1, y: 1, z: 1 },
+          trackProgress: (ptIdx + r * 3) / points.length,
+          active: true,
+          speed: 0,
+          phase: 0,
+        });
+      }
+    }
+  });
+
+  return {
+    points,
+    curve: spline,
+    trackMeshGroup: group,
+    checkpoints,
+    obstacles,
+    obstacleMeshes,
+    startPosition: new THREE.Vector3(startPt.x, startPt.y, startPt.z),
+    finishPosition: new THREE.Vector3(finishPt.x, finishPt.y, finishPt.z),
+    totalLength,
+  };
+}
+
+// --- Checkpoint Arch with 3D Banner ---
+function createCheckpointArch(index: number, total: number, color: number): THREE.Group {
+  const group = new THREE.Group();
+
+  const archMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.5 });
+  const neonMat = new THREE.MeshBasicMaterial({ color });
+
+  // Left & Right Pillars
+  const pillarGeo = new THREE.CylinderGeometry(0.2, 0.25, 4.5, 16);
+  const leftPillar = new THREE.Mesh(pillarGeo, archMat);
+  leftPillar.position.set(-3.1, 2.25, 0);
+  group.add(leftPillar);
+
+  const rightPillar = new THREE.Mesh(pillarGeo, archMat);
+  rightPillar.position.set(3.1, 2.25, 0);
+  group.add(rightPillar);
+
+  // Top Crossbeam
+  const beamGeo = new THREE.BoxGeometry(6.4, 0.4, 0.4);
+  const beam = new THREE.Mesh(beamGeo, archMat);
+  beam.position.set(0, 4.4, 0);
+  group.add(beam);
+
+  // Neon Arch Frame
+  const neonRingGeo = new THREE.TorusGeometry(3.1, 0.08, 8, 24, Math.PI);
+  const neonArch = new THREE.Mesh(neonRingGeo, neonMat);
+  neonArch.position.set(0, 1.4, 0);
+  group.add(neonArch);
+
+  // Checkpoint Text Canvas Sprite
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+  ctx.roundRect(5, 5, 246, 54, 12);
+  ctx.fill();
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.font = 'bold 26px sans-serif';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`CHECKPOINT ${index}/${total}`, 128, 32);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+  const bannerSprite = new THREE.Sprite(spriteMat);
+  bannerSprite.scale.set(3.6, 0.9, 1);
+  bannerSprite.position.set(0, 5.1, 0);
+  group.add(bannerSprite);
+
+  return group;
+}
+
+// --- Start Gate ---
+function createStartGate(levelConfig: LevelConfig): THREE.Group {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3 });
+  const glow = new THREE.MeshBasicMaterial({ color: 0x10b981 });
+
+  const left = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, 5, 16), mat);
+  left.position.set(-3.2, 2.5, 0);
+  group.add(left);
+
+  const right = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, 5, 16), mat);
+  right.position.set(3.2, 2.5, 0);
+  group.add(right);
+
+  const top = new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.6, 0.6), mat);
+  top.position.set(0, 4.8, 0);
+  group.add(top);
+
+  // Banner
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#10b981';
+  ctx.fillRect(0, 0, 512, 128);
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(8, 8, 496, 112);
+
+  ctx.font = 'bold 42px sans-serif';
+  ctx.fillStyle = '#10b981';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`LEVEL ${levelConfig.levelNumber} - START`, 256, 64);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  const spriteMat = new THREE.SpriteMaterial({ map: tex });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(5.2, 1.3, 1);
+  sprite.position.set(0, 5.8, 0);
+  group.add(sprite);
+
+  return group;
+}
+
+// --- Finish Arch ---
+function createFinishArch(levelConfig: LevelConfig, color: number): THREE.Group {
+  const group = new THREE.Group();
+  const archMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.2, metalness: 0.6 });
+
+  const left = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 6, 16), archMat);
+  left.position.set(-3.4, 3, 0);
+  group.add(left);
+
+  const right = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 6, 16), archMat);
+  right.position.set(3.4, 3, 0);
+  group.add(right);
+
+  const top = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.8, 0.8), archMat);
+  top.position.set(0, 5.8, 0);
+  group.add(top);
+
+  // Chequered Finish Banner
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+
+  // Chequered border
+  for (let y = 0; y < 128; y += 32) {
+    for (let x = 0; x < 512; x += 32) {
+      ctx.fillStyle = (x / 32 + y / 32) % 2 === 0 ? '#FFFFFF' : '#000000';
+      ctx.fillRect(x, y, 32, 32);
+    }
+  }
+
+  // Inner plate
+  ctx.fillStyle = levelConfig.isFinal ? '#eab308' : '#38bdf8';
+  ctx.fillRect(40, 20, 432, 88);
+
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(46, 26, 420, 76);
+
+  ctx.font = '900 44px sans-serif';
+  ctx.fillStyle = levelConfig.isFinal ? '#facc15' : '#FFFFFF';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(levelConfig.isFinal ? '🏆 GRAND FINAL FINISH 🏆' : '🏁 FINISH LINE 🏁', 256, 64);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  const spriteMat = new THREE.SpriteMaterial({ map: tex });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(6.0, 1.5, 1);
+  sprite.position.set(0, 6.8, 0);
+  group.add(sprite);
+
+  return group;
+}
+
+// --- Obstacle Builders ---
+
+function createSweeperObstacle(): { mesh: THREE.Group } {
+  const group = new THREE.Group();
+
+  // Central Pivot
+  const pivotGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.8, 16);
+  const pivotMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.3 });
+  const pivot = new THREE.Mesh(pivotGeo, pivotMat);
+  group.add(pivot);
+
+  // Rotating Double Bar
+  const barGeo = new THREE.BoxGeometry(4.8, 0.35, 0.35);
+  const barMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.2, metalness: 0.4 });
+  const bar = new THREE.Mesh(barGeo, barMat);
+  bar.position.y = 0.2;
+  group.add(bar);
+
+  // Warning Stripes
+  const warningGeo = new THREE.BoxGeometry(1.2, 0.37, 0.37);
+  const warningMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+  const wL = new THREE.Mesh(warningGeo, warningMat);
+  wL.position.set(-1.8, 0.2, 0);
+  group.add(wL);
+  const wR = new THREE.Mesh(warningGeo, warningMat);
+  wR.position.set(1.8, 0.2, 0);
+  group.add(wR);
+
+  return { mesh: group };
+}
+
+function createBumperObstacle(): THREE.Mesh {
+  const bumperGeo = new THREE.CylinderGeometry(0.65, 0.8, 0.6, 24);
+  const bumperMat = new THREE.MeshStandardMaterial({
+    color: 0xec4899,
+    roughness: 0.1,
+    metalness: 0.5,
+    emissive: 0xdb2777,
+    emissiveIntensity: 0.4,
+  });
+  const mesh = new THREE.Mesh(bumperGeo, bumperMat);
+  mesh.castShadow = true;
+  return mesh;
+}
+
+function createSpeedBoosterRing(): THREE.Group {
+  const group = new THREE.Group();
+  const ringGeo = new THREE.TorusGeometry(2.4, 0.18, 12, 32);
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  group.add(ring);
+
+  // Inner arrow pointers
+  for (let i = 0; i < 4; i++) {
+    const arrowGeo = new THREE.ConeGeometry(0.3, 0.6, 8);
+    const arrowMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
+    const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+    const ang = (i * Math.PI) / 2;
+    arrow.position.set(Math.cos(ang) * 2.0, Math.sin(ang) * 2.0, 0);
+    arrow.rotation.z = ang - Math.PI * 0.5;
+    group.add(arrow);
+  }
+
+  return group;
+}
+
+// --- Grand Final Stadium (Level 50) ---
+function createGrandFinalStadium(finishPt: TrackPoint, points: TrackPoint[]): THREE.Group {
+  const stadium = new THREE.Group();
+
+  // Grandstands around final straight
+  const standMat = new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.5 });
+  const seatMat1 = new THREE.MeshBasicMaterial({ color: 0xe11d48 });
+  const seatMat2 = new THREE.MeshBasicMaterial({ color: 0x3b82f6 });
+  const seatMat3 = new THREE.MeshBasicMaterial({ color: 0xeab308 });
+
+  // Left & Right Stadium Tier
+  [-12, 12].forEach(offsetX => {
+    const standGeo = new THREE.BoxGeometry(8, 6, 60);
+    const stand = new THREE.Mesh(standGeo, standMat);
+    stand.position.set(finishPt.x + finishPt.binormal.x * offsetX, finishPt.y + 2, finishPt.z + finishPt.binormal.z * offsetX);
+    stadium.add(stand);
+
+    // Colorful crowds (instanced cubes representing spectators)
+    for (let row = 0; row < 3; row++) {
+      for (let col = -12; col < 12; col++) {
+        const crowdMat = (row + col) % 3 === 0 ? seatMat1 : (row + col) % 3 === 1 ? seatMat2 : seatMat3;
+        const personGeo = new THREE.BoxGeometry(0.4, 0.6, 0.4);
+        const person = new THREE.Mesh(personGeo, crowdMat);
+        person.position.set(
+          finishPt.x + finishPt.binormal.x * (offsetX + (offsetX > 0 ? -row * 1.5 : row * 1.5)),
+          finishPt.y + 4 + row * 1.2,
+          finishPt.z + col * 2.2
+        );
+        stadium.add(person);
+      }
+    }
+  });
+
+  // Floodlights
+  [-15, 15].forEach(offsetX => {
+    for (let zOffset of [-20, 0, 20]) {
+      const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 16, 8), standMat);
+      tower.position.set(finishPt.x + finishPt.binormal.x * offsetX, finishPt.y + 8, finishPt.z + zOffset);
+      stadium.add(tower);
+
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 1.5), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      lamp.position.set(finishPt.x + finishPt.binormal.x * offsetX, finishPt.y + 16, finishPt.z + zOffset);
+      stadium.add(lamp);
+    }
+  });
+
+  return stadium;
+}
