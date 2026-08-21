@@ -1,125 +1,167 @@
-import React from 'react';
-import { ChevronUp, ChevronDown, Eye, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronUp, ChevronDown, Award, Zap, AlertTriangle, ShieldCheck, ChevronRight } from 'lucide-react';
 import { RacerState } from '../types';
 
 interface LeaderboardOverlayProps {
   racers: RacerState[];
-  qualifyingCount: number;
-  selectedCountryId: string | null;
-  onSelectCountry: (countryId: string | null) => void;
+  cutoffRank: number;
+  onSelectRacer?: (racerId: string) => void;
+  selectedRacerId?: string | null;
 }
 
 export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
   racers,
-  qualifyingCount,
-  selectedCountryId,
-  onSelectCountry,
+  cutoffRank,
+  onSelectRacer,
+  selectedRacerId,
 }) => {
-  // Sort racers by rank
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  // Sort racers strictly by current position/rank
   const sortedRacers = [...racers].sort((a, b) => a.currentRank - b.currentRank);
+  const displayRacers = isExpanded ? sortedRacers : sortedRacers.slice(0, 5);
+
+  const leaderProgress = sortedRacers[0]?.trackProgress || 0;
 
   return (
     <aside
       id="leaderboard-overlay"
-      className="absolute top-20 left-3 w-60 sm:w-68 max-h-[calc(100vh-175px)] flex flex-col rounded-3xl bg-slate-900/90 backdrop-blur-md border border-slate-800/90 shadow-2xl p-2.5 z-20 transition-all ring-1 ring-white/5"
+      aria-label="Championship Leaderboard"
+      className="absolute top-20 left-3 z-20 pointer-events-auto max-w-[260px] sm:max-w-[280px] w-full"
     >
-      {/* Bento Header */}
-      <div className="flex items-center justify-between px-2 py-2 border-b border-slate-800/80 mb-2">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
-          <span className="text-[11px] font-black uppercase tracking-wider text-slate-200">
-            Live Standings
-          </span>
+      <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800/90 rounded-3xl p-3 shadow-2xl ring-1 ring-white/5 flex flex-col gap-2">
+        {/* Bento Top Header */}
+        <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-400">
+              <Award className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <span className="text-[11px] font-black tracking-wider uppercase text-white">
+                Live Standings
+              </span>
+              <div className="text-[9px] text-slate-400 font-semibold leading-tight">
+                Top {cutoffRank} Advance
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-1 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-all text-[10px] flex items-center gap-0.5 px-2"
+          >
+            {isExpanded ? (
+              <>
+                <span>Top 5</span>
+                <ChevronUp className="w-3 h-3" />
+              </>
+            ) : (
+              <>
+                <span>All ({racers.length})</span>
+                <ChevronDown className="w-3 h-3" />
+              </>
+            )}
+          </button>
         </div>
-        <span className="text-[10px] font-extrabold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-          Top {qualifyingCount} Qualify
-        </span>
-      </div>
 
-      {/* Racers Bento List */}
-      <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5 scrollbar-thin scrollbar-thumb-slate-700">
-        {sortedRacers.map((racer, index) => {
-          const isQualified = racer.currentRank <= qualifyingCount;
-          const isSelected = selectedCountryId === racer.country.id;
-          const rankChange = racer.previousRank - racer.currentRank; // Positive = gained positions
+        {/* Racer Bento List */}
+        <div className="space-y-1 max-h-[380px] sm:max-h-[460px] overflow-y-auto pr-1 select-none custom-scrollbar">
+          {displayRacers.map((racer, index) => {
+            const isQualifying = racer.currentRank <= cutoffRank;
+            const isCutoffLine = racer.currentRank === cutoffRank && index < displayRacers.length - 1;
+            const isSelected = selectedRacerId === racer.country.id;
 
-          const isCutoffLine = index === qualifyingCount - 1 && qualifyingCount < racers.length;
+            // Gap calculation
+            const gapProgress = leaderProgress - racer.trackProgress;
+            const gapMeters = Math.max(0, Math.round(gapProgress * 280));
+            const speedKmh = Math.round(racer.currentSpeed * 3.6);
 
-          return (
-            <React.Fragment key={racer.country.id}>
-              <button
-                id={`leaderboard-row-${racer.country.id}`}
-                onClick={() => onSelectCountry(isSelected ? null : racer.country.id)}
-                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition-all duration-200 ${
-                  isSelected
-                    ? 'bg-sky-500/25 border border-sky-400/80 shadow-md shadow-sky-500/20 ring-1 ring-sky-400/50'
-                    : isQualified
-                    ? 'bg-slate-950/60 hover:bg-slate-800/80 border border-slate-800/80 hover:border-slate-700'
-                    : 'bg-rose-950/20 hover:bg-rose-900/30 border border-rose-900/40'
-                }`}
-              >
-                {/* Left: Rank, Flag, Name */}
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 ${
-                      racer.currentRank === 1
-                        ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/30'
-                        : racer.currentRank === 2
-                        ? 'bg-slate-300 text-slate-950'
-                        : racer.currentRank === 3
-                        ? 'bg-amber-700 text-amber-100'
-                        : 'bg-slate-800 text-slate-300'
-                    }`}
-                  >
-                    {racer.currentRank}
-                  </span>
+            return (
+              <React.Fragment key={racer.country.id}>
+                <div
+                  onClick={() => onSelectRacer?.(racer.country.id)}
+                  className={`group relative flex items-center justify-between p-1.5 px-2 rounded-2xl transition-all cursor-pointer border ${
+                    isSelected
+                      ? 'bg-sky-950/70 border-sky-400/80 shadow-md ring-1 ring-sky-400/50'
+                      : isQualifying
+                      ? 'bg-slate-950/60 hover:bg-slate-800/80 border-slate-800/80'
+                      : 'bg-rose-950/30 hover:bg-rose-900/40 border-rose-900/40 opacity-80'
+                  }`}
+                >
+                  {/* Rank Position Pill */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div
+                      className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 ${
+                        racer.currentRank === 1
+                          ? 'bg-amber-400 text-slate-950 font-black shadow-sm'
+                          : racer.currentRank === 2
+                          ? 'bg-slate-300 text-slate-950 font-bold'
+                          : racer.currentRank === 3
+                          ? 'bg-amber-700 text-white font-bold'
+                          : isQualifying
+                          ? 'bg-slate-800 text-slate-300'
+                          : 'bg-rose-900/80 text-rose-300'
+                      }`}
+                    >
+                      {racer.currentRank}
+                    </div>
 
-                  <span className="text-base shrink-0 leading-none">{racer.country.flagEmoji}</span>
+                    {/* Flag & Country Name */}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-base leading-none drop-shadow-sm">
+                        {racer.country.flagEmoji}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-slate-100 truncate block group-hover:text-sky-300 transition-colors">
+                          {racer.country.name}
+                        </span>
+                        {/* Speed Micro-Bar */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] font-mono text-slate-400">
+                            {speedKmh} km/h
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-                  <span className="text-xs font-bold text-slate-100 truncate">
-                    {racer.country.name}
-                  </span>
+                  {/* Status / Gap Indicator */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {racer.finished ? (
+                      <span className="text-[9px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded-lg">
+                        FIN
+                      </span>
+                    ) : racer.currentRank === 1 ? (
+                      <span className="text-[9px] font-black text-amber-400 bg-amber-400/15 border border-amber-400/30 px-1.5 py-0.5 rounded-lg font-mono">
+                        LEADER
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-mono text-slate-400 bg-slate-950/60 px-1.5 py-0.5 rounded-lg border border-slate-800">
+                        +{gapMeters}m
+                      </span>
+                    )}
+
+                    {isQualifying ? (
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                    )}
+                  </div>
                 </div>
 
-                {/* Right: Overtake delta & status */}
-                <div className="flex items-center gap-1.5 shrink-0 pl-1">
-                  {rankChange > 0 ? (
-                    <span className="flex items-center text-[10px] font-black text-emerald-400 font-mono">
-                      <ChevronUp className="w-3.5 h-3.5 -mr-0.5" />
-                      {rankChange}
+                {/* Qualification Cutoff Boundary Divider */}
+                {isCutoffLine && (
+                  <div className="relative py-1 flex items-center justify-center">
+                    <div className="absolute inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-rose-500 to-transparent"></div>
+                    <span className="relative text-[8px] font-black uppercase tracking-widest bg-slate-950 text-rose-400 px-2 py-0.5 rounded-full border border-rose-500/40 shadow-sm">
+                      Knockout Danger Zone
                     </span>
-                  ) : rankChange < 0 ? (
-                    <span className="flex items-center text-[10px] font-black text-rose-400 font-mono">
-                      <ChevronDown className="w-3.5 h-3.5 -mr-0.5" />
-                      {Math.abs(rankChange)}
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-bold text-slate-600 font-mono">-</span>
-                  )}
-
-                  {racer.finished ? (
-                    <span className="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded font-black font-mono">
-                      FIN
-                    </span>
-                  ) : isSelected ? (
-                    <Eye className="w-3.5 h-3.5 text-sky-400 animate-pulse" />
-                  ) : null}
-                </div>
-              </button>
-
-              {/* Elimination Danger Zone Divider */}
-              {isCutoffLine && (
-                <div className="flex items-center gap-2 my-1.5 px-1">
-                  <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-rose-500/50 to-transparent"></div>
-                  <span className="text-[9px] font-black tracking-wider uppercase text-rose-400 flex items-center gap-1 bg-rose-950/40 border border-rose-500/30 px-2 py-0.5 rounded-full">
-                    <AlertCircle className="w-2.5 h-2.5" /> Danger Zone
-                  </span>
-                  <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-rose-500/50 to-transparent"></div>
-                </div>
-              )}
-            </React.Fragment>
-          );
-        })}
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
     </aside>
   );

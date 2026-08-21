@@ -20,32 +20,39 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
   const obstacles: ObstacleInstance[] = [];
   const obstacleMeshes: { instance: ObstacleInstance; mesh: THREE.Object3D }[] = [];
 
-  // Theme Colors
-  let roadColor = 0x1e293b;
+  // Theme Palette
+  let roadColor = 0x111827;
   let curbColor = 0x38bdf8;
   let railColor = 0x0ea5e9;
-  let supportColor = 0x0f172a;
+  let supportColor = 0x1e293b;
   let pillarGlow = 0x0284c7;
+  let chevronColor = 0x38bdf8;
 
   if (levelConfig.theme === 'sunset_canyon') {
-    roadColor = 0x27202b;
+    roadColor = 0x1f1724;
     curbColor = 0xf97316;
     railColor = 0xfb923c;
     pillarGlow = 0xe11d48;
+    supportColor = 0x2d1a33;
+    chevronColor = 0xfacc15;
   } else if (levelConfig.theme === 'cyber_circuit') {
-    roadColor = 0x0f172a;
-    curbColor = 0x22c55e;
-    railColor = 0x4ade80;
-    pillarGlow = 0x10b981;
+    roadColor = 0x06141c;
+    curbColor = 0x10b981;
+    railColor = 0x34d399;
+    pillarGlow = 0x06b6d4;
+    supportColor = 0x0f2922;
+    chevronColor = 0x22d3ee;
   } else if (levelConfig.theme === 'cosmic_stadium' || levelConfig.theme === 'gold_arena' || levelConfig.isFinal) {
-    roadColor = 0x18181b;
+    roadColor = 0x131109;
     curbColor = 0xeab308;
     railColor = 0xfacc15;
     pillarGlow = 0xca8a04;
+    supportColor = 0x28230f;
+    chevronColor = 0xfef08a;
   }
 
   // Build Procedural Waypoints from Segments
-  let curPos = new THREE.Vector3(0, 5, 0);
+  let curPos = new THREE.Vector3(0, 6, 0);
   let curDir = new THREE.Vector3(0, 0, 1);
   let curAngle = 0; // heading angle in radians
 
@@ -53,19 +60,17 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
 
   // Starting straight grid
   for (let i = 1; i <= 3; i++) {
-    curPos.add(curDir.clone().multiplyScalar(15));
+    curPos.add(curDir.clone().multiplyScalar(16));
     rawWaypoints.push(curPos.clone());
   }
 
   const segments = levelConfig.segmentTypes;
   const totalSegs = segments.length;
 
-  segments.forEach((segType, sIdx) => {
-    const progressEstimate = (sIdx + 1) / totalSegs;
-
+  segments.forEach((segType) => {
     switch (segType) {
       case 'straight': {
-        curPos.add(curDir.clone().multiplyScalar(28));
+        curPos.add(curDir.clone().multiplyScalar(30));
         rawWaypoints.push(curPos.clone());
         break;
       }
@@ -73,7 +78,7 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
         for (let step = 0; step < 3; step++) {
           curAngle += (Math.PI * 0.25) / 3;
           curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
-          curPos.add(curDir.clone().multiplyScalar(14));
+          curPos.add(curDir.clone().multiplyScalar(15));
           rawWaypoints.push(curPos.clone());
         }
         break;
@@ -82,7 +87,7 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
         for (let step = 0; step < 3; step++) {
           curAngle -= (Math.PI * 0.25) / 3;
           curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
-          curPos.add(curDir.clone().multiplyScalar(14));
+          curPos.add(curDir.clone().multiplyScalar(15));
           rawWaypoints.push(curPos.clone());
         }
         break;
@@ -91,7 +96,7 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
         for (let step = 0; step < 4; step++) {
           curAngle += (Math.PI * 0.45) / 4;
           curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
-          curPos.add(curDir.clone().multiplyScalar(11));
+          curPos.add(curDir.clone().multiplyScalar(12));
           rawWaypoints.push(curPos.clone());
         }
         break;
@@ -100,39 +105,39 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
         for (let step = 0; step < 4; step++) {
           curAngle -= (Math.PI * 0.45) / 4;
           curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
-          curPos.add(curDir.clone().multiplyScalar(11));
+          curPos.add(curDir.clone().multiplyScalar(12));
           rawWaypoints.push(curPos.clone());
         }
         break;
       }
       case 'ramp_up': {
-        curPos.add(curDir.clone().multiplyScalar(18)).add(new THREE.Vector3(0, 5.5, 0));
+        curPos.add(curDir.clone().multiplyScalar(20)).add(new THREE.Vector3(0, 6.5, 0));
         rawWaypoints.push(curPos.clone());
-        curPos.add(curDir.clone().multiplyScalar(18));
+        curPos.add(curDir.clone().multiplyScalar(20));
         rawWaypoints.push(curPos.clone());
         break;
       }
       case 'ramp_down': {
-        curPos.add(curDir.clone().multiplyScalar(18)).add(new THREE.Vector3(0, -5.5, 0));
+        curPos.add(curDir.clone().multiplyScalar(20)).add(new THREE.Vector3(0, -6.5, 0));
         rawWaypoints.push(curPos.clone());
-        curPos.add(curDir.clone().multiplyScalar(18));
+        curPos.add(curDir.clone().multiplyScalar(20));
         rawWaypoints.push(curPos.clone());
         break;
       }
       case 'mega_jump': {
         // Launch crest
-        curPos.add(curDir.clone().multiplyScalar(14)).add(new THREE.Vector3(0, 4, 0));
+        curPos.add(curDir.clone().multiplyScalar(15)).add(new THREE.Vector3(0, 5, 0));
         rawWaypoints.push(curPos.clone());
         // Air gap
-        curPos.add(curDir.clone().multiplyScalar(22)).add(new THREE.Vector3(0, -3, 0));
+        curPos.add(curDir.clone().multiplyScalar(24)).add(new THREE.Vector3(0, -3.5, 0));
         rawWaypoints.push(curPos.clone());
         // Landing pad
-        curPos.add(curDir.clone().multiplyScalar(18)).add(new THREE.Vector3(0, -3, 0));
+        curPos.add(curDir.clone().multiplyScalar(20)).add(new THREE.Vector3(0, -3.5, 0));
         rawWaypoints.push(curPos.clone());
         break;
       }
       case 'narrow_bridge': {
-        curPos.add(curDir.clone().multiplyScalar(32));
+        curPos.add(curDir.clone().multiplyScalar(34));
         rawWaypoints.push(curPos.clone());
         break;
       }
@@ -140,26 +145,25 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
         for (let step = 0; step < 6; step++) {
           curAngle += (Math.PI * 0.35);
           curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
-          curPos.add(curDir.clone().multiplyScalar(12)).add(new THREE.Vector3(0, -1.8, 0));
+          curPos.add(curDir.clone().multiplyScalar(13)).add(new THREE.Vector3(0, -2.0, 0));
           rawWaypoints.push(curPos.clone());
         }
         break;
       }
       case 'chicane': {
-        // S-turn
-        curAngle += 0.35;
-        curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
-        curPos.add(curDir.clone().multiplyScalar(16));
-        rawWaypoints.push(curPos.clone());
-
-        curAngle -= 0.7;
+        curAngle += 0.38;
         curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
         curPos.add(curDir.clone().multiplyScalar(18));
         rawWaypoints.push(curPos.clone());
 
-        curAngle += 0.35;
+        curAngle -= 0.76;
         curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
-        curPos.add(curDir.clone().multiplyScalar(16));
+        curPos.add(curDir.clone().multiplyScalar(20));
+        rawWaypoints.push(curPos.clone());
+
+        curAngle += 0.38;
+        curDir.set(Math.sin(curAngle), 0, Math.cos(curAngle)).normalize();
+        curPos.add(curDir.clone().multiplyScalar(18));
         rawWaypoints.push(curPos.clone());
         break;
       }
@@ -167,25 +171,25 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
       case 'bumping_field':
       case 'moving_platforms':
       case 'speed_tunnel': {
-        curPos.add(curDir.clone().multiplyScalar(30));
+        curPos.add(curDir.clone().multiplyScalar(32));
         rawWaypoints.push(curPos.clone());
         break;
       }
       default: {
-        curPos.add(curDir.clone().multiplyScalar(25));
+        curPos.add(curDir.clone().multiplyScalar(26));
         rawWaypoints.push(curPos.clone());
       }
     }
   });
 
   // Final Straightaway toward Grand Finish Arch
-  curPos.add(curDir.clone().multiplyScalar(35));
+  curPos.add(curDir.clone().multiplyScalar(38));
   rawWaypoints.push(curPos.clone());
 
   // Create Smooth Catmull-Rom Spline Curve
   const spline = new THREE.CatmullRomCurve3(rawWaypoints, false, 'centripetal', 0.5);
   const totalLength = spline.getLength();
-  const sampleCount = Math.max(250, Math.floor(totalLength / 2));
+  const sampleCount = Math.max(280, Math.floor(totalLength / 1.8));
   const points: TrackPoint[] = [];
 
   for (let i = 0; i <= sampleCount; i++) {
@@ -203,12 +207,12 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
       tangent: { x: tangent.x, y: tangent.y, z: tangent.z },
       normal: { x: normal.x, y: normal.y, z: normal.z },
       binormal: { x: binormal.x, y: binormal.y, z: binormal.z },
-      width: 5.4,
+      width: 5.6,
       hasRails: true,
     });
   }
 
-  // --- Build 3D Road Mesh Ribbon ---
+  // --- Build 3D Road Mesh Ribbon with Sub-Road Scaffolding ---
   const roadGeo = new THREE.BufferGeometry();
   const vertices: number[] = [];
   const normals: number[] = [];
@@ -219,6 +223,8 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
   const railGeoRight = new THREE.BufferGeometry();
   const railVertsL: number[] = [];
   const railVertsR: number[] = [];
+  const lowerGlowL: number[] = [];
+  const lowerGlowR: number[] = [];
 
   for (let i = 0; i < points.length; i++) {
     const p = points[i];
@@ -235,15 +241,19 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
 
     vertices.push(lx, ly, lz);
     normals.push(p.normal.x, p.normal.y, p.normal.z);
-    uvs.push(0, i / 5);
+    uvs.push(0, i / 4);
 
     vertices.push(rx, ry, rz);
     normals.push(p.normal.x, p.normal.y, p.normal.z);
-    uvs.push(1, i / 5);
+    uvs.push(1, i / 4);
 
-    // Glowing guard rails
-    railVertsL.push(lx, ly + 0.35, lz);
-    railVertsR.push(rx, ry + 0.35, rz);
+    // High Neon guard rails
+    railVertsL.push(lx, ly + 0.45, lz);
+    railVertsR.push(rx, ry + 0.45, rz);
+
+    // Lower Energy Trim
+    lowerGlowL.push(lx, ly - 0.2, lz);
+    lowerGlowR.push(rx, ry - 0.2, rz);
 
     if (i < points.length - 1) {
       const v0 = i * 2;
@@ -263,8 +273,8 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
 
   const roadMat = new THREE.MeshStandardMaterial({
     color: roadColor,
-    roughness: 0.4,
-    metalness: 0.3,
+    roughness: 0.35,
+    metalness: 0.45,
     side: THREE.DoubleSide,
   });
   const roadMesh = new THREE.Mesh(roadGeo, roadMat);
@@ -273,38 +283,73 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
 
   // Guard rails line / tube
   const railMat = new THREE.MeshBasicMaterial({ color: railColor });
-  const curbMat = new THREE.MeshStandardMaterial({ color: curbColor, roughness: 0.2, emissive: curbColor, emissiveIntensity: 0.3 });
+  const curbMat = new THREE.MeshStandardMaterial({ color: curbColor, roughness: 0.2, emissive: curbColor, emissiveIntensity: 0.6 });
+  const lowerGlowMat = new THREE.MeshBasicMaterial({ color: pillarGlow });
 
   // Neon Curbs (Left & Right)
-  const curbGeoL = new THREE.BufferGeometry();
-  curbGeoL.setAttribute('position', new THREE.Float32BufferAttribute(railVertsL, 3));
-  const curbLineL = new THREE.Line(curbGeoL, railMat);
+  railGeoLeft.setAttribute('position', new THREE.Float32BufferAttribute(railVertsL, 3));
+  const curbLineL = new THREE.Line(railGeoLeft, curbMat);
   group.add(curbLineL);
 
-  const curbGeoR = new THREE.BufferGeometry();
-  curbGeoR.setAttribute('position', new THREE.Float32BufferAttribute(railVertsR, 3));
-  const curbLineR = new THREE.Line(curbGeoR, railMat);
+  railGeoRight.setAttribute('position', new THREE.Float32BufferAttribute(railVertsR, 3));
+  const curbLineR = new THREE.Line(railGeoRight, curbMat);
   group.add(curbLineR);
 
-  // Pillars / Elevated supports beneath track
-  const pillarMat = new THREE.MeshStandardMaterial({ color: supportColor, roughness: 0.6 });
-  const glowRingMat = new THREE.MeshBasicMaterial({ color: pillarGlow });
+  // Lower Energy Conduits
+  const lowGeoL = new THREE.BufferGeometry();
+  lowGeoL.setAttribute('position', new THREE.Float32BufferAttribute(lowerGlowL, 3));
+  const lowLineL = new THREE.Line(lowGeoL, lowerGlowMat);
+  group.add(lowLineL);
 
-  for (let i = 10; i < points.length - 5; i += 18) {
+  const lowGeoR = new THREE.BufferGeometry();
+  lowGeoR.setAttribute('position', new THREE.Float32BufferAttribute(lowerGlowR, 3));
+  const lowLineR = new THREE.Line(lowGeoR, lowerGlowMat);
+  group.add(lowLineR);
+
+  // High-Production Metallic Truss Pillars & Energy Pylons beneath track
+  const pillarMat = new THREE.MeshStandardMaterial({ color: supportColor, roughness: 0.5, metalness: 0.7 });
+  const glowRingMat = new THREE.MeshBasicMaterial({ color: pillarGlow });
+  const chevronMat = new THREE.MeshBasicMaterial({ color: chevronColor });
+
+  for (let i = 8; i < points.length - 6; i += 12) {
     const pt = points[i];
-    if (pt.y > 1.5) {
-      const pillarGeo = new THREE.CylinderGeometry(0.5, 0.7, pt.y + 10, 16);
+    const pillarHeight = pt.y + 22;
+
+    if (pillarHeight > 1) {
+      // Main Support Column
+      const pillarGeo = new THREE.CylinderGeometry(0.7, 0.9, pillarHeight, 16);
       const pillar = new THREE.Mesh(pillarGeo, pillarMat);
-      pillar.position.set(pt.x, (pt.y - 10) / 2, pt.z);
+      pillar.position.set(pt.x, (pt.y - 22) / 2, pt.z);
       pillar.castShadow = true;
       group.add(pillar);
 
-      // Glowing collar
-      const ringGeo = new THREE.TorusGeometry(0.75, 0.08, 8, 16);
+      // Cyber Glowing Ring Collar
+      const ringGeo = new THREE.TorusGeometry(1.2, 0.12, 8, 16);
       const ring = new THREE.Mesh(ringGeo, glowRingMat);
-      ring.position.set(pt.x, pt.y - 0.5, pt.z);
+      ring.position.set(pt.x, pt.y - 0.4, pt.z);
       ring.rotation.x = Math.PI * 0.5;
       group.add(ring);
+
+      // Support Cross-Truss Beam
+      const crossBeamGeo = new THREE.BoxGeometry(pt.width + 1.2, 0.5, 0.5);
+      const crossBeam = new THREE.Mesh(crossBeamGeo, pillarMat);
+      crossBeam.position.set(pt.x, pt.y - 0.3, pt.z);
+      const lookAtPt = new THREE.Vector3(pt.x + pt.tangent.x, pt.y + pt.tangent.y, pt.z + pt.tangent.z);
+      crossBeam.lookAt(lookAtPt);
+      crossBeam.rotateY(Math.PI / 2);
+      group.add(crossBeam);
+
+      // High-Gantry Trackside Floodlights
+      if (i % 24 === 0) {
+        const gantry = createTracksideFloodlightGantry(pt, curbColor);
+        group.add(gantry);
+      }
+
+      // Neon Holographic Overhead Sponsor Rings
+      if (i % 48 === 0) {
+        const holoRing = createHoloSponsorRing(pt, levelConfig.theme);
+        group.add(holoRing);
+      }
     }
   }
 
@@ -345,11 +390,9 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
   finishArch.lookAt(finishPt.x + finishPt.tangent.x, finishPt.y + finishPt.tangent.y, finishPt.z + finishPt.tangent.z);
   group.add(finishArch);
 
-  // If Final Level (Level 50), add full grand stadium audience, floodlights, and fireworks cannons!
-  if (levelConfig.isFinal) {
-    const stadium = createGrandFinalStadium(finishPt, points);
-    group.add(stadium);
-  }
+  // Stadium grandstand crowds along finish stretch
+  const stadiumFinish = createGrandFinalStadium(finishPt, points, levelConfig.isFinal);
+  group.add(stadiumFinish);
 
   // --- Place Dynamic Obstacles Based on Level Segments ---
   segments.forEach((segType, idx) => {
@@ -370,7 +413,7 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
         scale: { x: 1, y: 1, z: 1 },
         trackProgress: ptIdx / points.length,
         active: true,
-        speed: 2.2,
+        speed: 2.4,
         phase: Math.random() * Math.PI,
       });
       obstacleMeshes.push({ instance: obstacles[obstacles.length - 1], mesh: sweeper.mesh });
@@ -435,6 +478,80 @@ export function generateTrack(levelConfig: LevelConfig): GeneratedTrackData {
   };
 }
 
+// Trackside Floodlight Gantry
+function createTracksideFloodlightGantry(pt: TrackPoint, lightColor: number): THREE.Group {
+  const gantry = new THREE.Group();
+  const metalMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8 });
+  const bulbMat = new THREE.MeshBasicMaterial({ color: lightColor });
+
+  // Left Post
+  const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 7, 8), metalMat);
+  p1.position.set(pt.x - pt.binormal.x * 4.2, pt.y + 3.5, pt.z - pt.binormal.z * 4.2);
+  gantry.add(p1);
+
+  // Right Post
+  const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 7, 8), metalMat);
+  p2.position.set(pt.x + pt.binormal.x * 4.2, pt.y + 3.5, pt.z + pt.binormal.z * 4.2);
+  gantry.add(p2);
+
+  // Top Light Bar
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(9.0, 0.4, 0.4), metalMat);
+  bar.position.set(pt.x, pt.y + 7.0, pt.z);
+  const lookTarget = new THREE.Vector3(pt.x + pt.tangent.x, pt.y + pt.tangent.y, pt.z + pt.tangent.z);
+  bar.lookAt(lookTarget);
+  bar.rotateY(Math.PI / 2);
+  gantry.add(bar);
+
+  // 4 Spotlight Fixtures
+  for (let s = -3; s <= 3; s += 2) {
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), bulbMat);
+    bulb.position.set(pt.x + pt.binormal.x * s, pt.y + 6.8, pt.z + pt.binormal.z * s);
+    gantry.add(bulb);
+  }
+
+  return gantry;
+}
+
+// Holographic Floating Sponsor Ring
+function createHoloSponsorRing(pt: TrackPoint, theme: string): THREE.Group {
+  const group = new THREE.Group();
+  const ringGeo = new THREE.TorusGeometry(5.2, 0.15, 8, 32);
+  const ringCol = theme === 'gold_arena' ? 0xfacc15 : theme === 'cyber_circuit' ? 0x10b981 : 0x38bdf8;
+  const ringMat = new THREE.MeshBasicMaterial({ color: ringCol, wireframe: true });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.set(pt.x, pt.y + 5.5, pt.z);
+  const lookTarget = new THREE.Vector3(pt.x + pt.tangent.x, pt.y + pt.tangent.y, pt.z + pt.tangent.z);
+  ring.lookAt(lookTarget);
+  group.add(ring);
+
+  // Holographic Ad Banner Sprite
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = 'rgba(6, 9, 19, 0.85)';
+  ctx.roundRect(10, 10, 492, 108, 16);
+  ctx.fill();
+  ctx.strokeStyle = theme === 'gold_arena' ? '#facc15' : '#38bdf8';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  ctx.font = '900 36px sans-serif';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('⚡ WORLD MARBLE GP ⚡', 256, 64);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+  const bannerSprite = new THREE.Sprite(spriteMat);
+  bannerSprite.scale.set(6.4, 1.6, 1);
+  bannerSprite.position.set(pt.x, pt.y + 5.5, pt.z);
+  group.add(bannerSprite);
+
+  return group;
+}
+
 // --- Checkpoint Arch with 3D Banner ---
 function createCheckpointArch(index: number, total: number, color: number): THREE.Group {
   const group = new THREE.Group();
@@ -443,25 +560,25 @@ function createCheckpointArch(index: number, total: number, color: number): THRE
   const neonMat = new THREE.MeshBasicMaterial({ color });
 
   // Left & Right Pillars
-  const pillarGeo = new THREE.CylinderGeometry(0.2, 0.25, 4.5, 16);
+  const pillarGeo = new THREE.CylinderGeometry(0.25, 0.3, 5.2, 16);
   const leftPillar = new THREE.Mesh(pillarGeo, archMat);
-  leftPillar.position.set(-3.1, 2.25, 0);
+  leftPillar.position.set(-3.2, 2.6, 0);
   group.add(leftPillar);
 
   const rightPillar = new THREE.Mesh(pillarGeo, archMat);
-  rightPillar.position.set(3.1, 2.25, 0);
+  rightPillar.position.set(3.2, 2.6, 0);
   group.add(rightPillar);
 
   // Top Crossbeam
-  const beamGeo = new THREE.BoxGeometry(6.4, 0.4, 0.4);
+  const beamGeo = new THREE.BoxGeometry(6.8, 0.5, 0.5);
   const beam = new THREE.Mesh(beamGeo, archMat);
-  beam.position.set(0, 4.4, 0);
+  beam.position.set(0, 5.0, 0);
   group.add(beam);
 
   // Neon Arch Frame
-  const neonRingGeo = new THREE.TorusGeometry(3.1, 0.08, 8, 24, Math.PI);
+  const neonRingGeo = new THREE.TorusGeometry(3.3, 0.1, 8, 24, Math.PI);
   const neonArch = new THREE.Mesh(neonRingGeo, neonMat);
-  neonArch.position.set(0, 1.4, 0);
+  neonArch.position.set(0, 1.7, 0);
   group.add(neonArch);
 
   // Checkpoint Text Canvas Sprite
@@ -469,7 +586,7 @@ function createCheckpointArch(index: number, total: number, color: number): THRE
   canvas.width = 256;
   canvas.height = 64;
   const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
   ctx.roundRect(5, 5, 246, 54, 12);
   ctx.fill();
   ctx.strokeStyle = '#38bdf8';
@@ -480,13 +597,13 @@ function createCheckpointArch(index: number, total: number, color: number): THRE
   ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`CHECKPOINT ${index}/${total}`, 128, 32);
+  ctx.fillText(`SECTOR CP ${index}/${total}`, 128, 32);
 
   const tex = new THREE.CanvasTexture(canvas);
   const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
   const bannerSprite = new THREE.Sprite(spriteMat);
-  bannerSprite.scale.set(3.6, 0.9, 1);
-  bannerSprite.position.set(0, 5.1, 0);
+  bannerSprite.scale.set(4.0, 1.0, 1);
+  bannerSprite.position.set(0, 5.8, 0);
   group.add(bannerSprite);
 
   return group;
@@ -498,16 +615,16 @@ function createStartGate(levelConfig: LevelConfig): THREE.Group {
   const mat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3 });
   const glow = new THREE.MeshBasicMaterial({ color: 0x10b981 });
 
-  const left = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, 5, 16), mat);
-  left.position.set(-3.2, 2.5, 0);
+  const left = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 6, 16), mat);
+  left.position.set(-3.5, 3.0, 0);
   group.add(left);
 
-  const right = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, 5, 16), mat);
-  right.position.set(3.2, 2.5, 0);
+  const right = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 6, 16), mat);
+  right.position.set(3.5, 3.0, 0);
   group.add(right);
 
-  const top = new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.6, 0.6), mat);
-  top.position.set(0, 4.8, 0);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.7, 0.7), mat);
+  top.position.set(0, 5.8, 0);
   group.add(top);
 
   // Banner
@@ -520,17 +637,17 @@ function createStartGate(levelConfig: LevelConfig): THREE.Group {
   ctx.fillStyle = '#0f172a';
   ctx.fillRect(8, 8, 496, 112);
 
-  ctx.font = 'bold 42px sans-serif';
+  ctx.font = '900 42px sans-serif';
   ctx.fillStyle = '#10b981';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`LEVEL ${levelConfig.levelNumber} - START`, 256, 64);
+  ctx.fillText(`STAGE ${levelConfig.levelNumber} START`, 256, 64);
 
   const tex = new THREE.CanvasTexture(canvas);
   const spriteMat = new THREE.SpriteMaterial({ map: tex });
   const sprite = new THREE.Sprite(spriteMat);
-  sprite.scale.set(5.2, 1.3, 1);
-  sprite.position.set(0, 5.8, 0);
+  sprite.scale.set(5.8, 1.45, 1);
+  sprite.position.set(0, 6.8, 0);
   group.add(sprite);
 
   return group;
@@ -541,16 +658,16 @@ function createFinishArch(levelConfig: LevelConfig, color: number): THREE.Group 
   const group = new THREE.Group();
   const archMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.2, metalness: 0.6 });
 
-  const left = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 6, 16), archMat);
-  left.position.set(-3.4, 3, 0);
+  const left = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 7, 16), archMat);
+  left.position.set(-3.6, 3.5, 0);
   group.add(left);
 
-  const right = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 6, 16), archMat);
-  right.position.set(3.4, 3, 0);
+  const right = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 7, 16), archMat);
+  right.position.set(3.6, 3.5, 0);
   group.add(right);
 
-  const top = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.8, 0.8), archMat);
-  top.position.set(0, 5.8, 0);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(8.0, 0.9, 0.9), archMat);
+  top.position.set(0, 6.8, 0);
   group.add(top);
 
   // Chequered Finish Banner
@@ -559,7 +676,6 @@ function createFinishArch(levelConfig: LevelConfig, color: number): THREE.Group 
   canvas.height = 128;
   const ctx = canvas.getContext('2d')!;
 
-  // Chequered border
   for (let y = 0; y < 128; y += 32) {
     for (let x = 0; x < 512; x += 32) {
       ctx.fillStyle = (x / 32 + y / 32) % 2 === 0 ? '#FFFFFF' : '#000000';
@@ -567,7 +683,6 @@ function createFinishArch(levelConfig: LevelConfig, color: number): THREE.Group 
     }
   }
 
-  // Inner plate
   ctx.fillStyle = levelConfig.isFinal ? '#eab308' : '#38bdf8';
   ctx.fillRect(40, 20, 432, 88);
 
@@ -583,8 +698,8 @@ function createFinishArch(levelConfig: LevelConfig, color: number): THREE.Group 
   const tex = new THREE.CanvasTexture(canvas);
   const spriteMat = new THREE.SpriteMaterial({ map: tex });
   const sprite = new THREE.Sprite(spriteMat);
-  sprite.scale.set(6.0, 1.5, 1);
-  sprite.position.set(0, 6.8, 0);
+  sprite.scale.set(6.6, 1.65, 1);
+  sprite.position.set(0, 7.8, 0);
   group.add(sprite);
 
   return group;
@@ -595,40 +710,38 @@ function createFinishArch(levelConfig: LevelConfig, color: number): THREE.Group 
 function createSweeperObstacle(): { mesh: THREE.Group } {
   const group = new THREE.Group();
 
-  // Central Pivot
-  const pivotGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.8, 16);
+  const pivotGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.9, 16);
   const pivotMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.3 });
   const pivot = new THREE.Mesh(pivotGeo, pivotMat);
   group.add(pivot);
 
-  // Rotating Double Bar
-  const barGeo = new THREE.BoxGeometry(4.8, 0.35, 0.35);
-  const barMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.2, metalness: 0.4 });
+  const barGeo = new THREE.BoxGeometry(5.0, 0.4, 0.4);
+  const barMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.2, metalness: 0.5 });
   const bar = new THREE.Mesh(barGeo, barMat);
-  bar.position.y = 0.2;
+  bar.position.y = 0.25;
   group.add(bar);
 
   // Warning Stripes
-  const warningGeo = new THREE.BoxGeometry(1.2, 0.37, 0.37);
+  const warningGeo = new THREE.BoxGeometry(1.3, 0.42, 0.42);
   const warningMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
   const wL = new THREE.Mesh(warningGeo, warningMat);
-  wL.position.set(-1.8, 0.2, 0);
+  wL.position.set(-1.85, 0.25, 0);
   group.add(wL);
   const wR = new THREE.Mesh(warningGeo, warningMat);
-  wR.position.set(1.8, 0.2, 0);
+  wR.position.set(1.85, 0.25, 0);
   group.add(wR);
 
   return { mesh: group };
 }
 
 function createBumperObstacle(): THREE.Mesh {
-  const bumperGeo = new THREE.CylinderGeometry(0.65, 0.8, 0.6, 24);
+  const bumperGeo = new THREE.CylinderGeometry(0.7, 0.85, 0.65, 24);
   const bumperMat = new THREE.MeshStandardMaterial({
     color: 0xec4899,
     roughness: 0.1,
     metalness: 0.5,
     emissive: 0xdb2777,
-    emissiveIntensity: 0.4,
+    emissiveIntensity: 0.5,
   });
   const mesh = new THREE.Mesh(bumperGeo, bumperMat);
   mesh.castShadow = true;
@@ -637,18 +750,17 @@ function createBumperObstacle(): THREE.Mesh {
 
 function createSpeedBoosterRing(): THREE.Group {
   const group = new THREE.Group();
-  const ringGeo = new THREE.TorusGeometry(2.4, 0.18, 12, 32);
+  const ringGeo = new THREE.TorusGeometry(2.5, 0.2, 12, 32);
   const ringMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
   const ring = new THREE.Mesh(ringGeo, ringMat);
   group.add(ring);
 
-  // Inner arrow pointers
   for (let i = 0; i < 4; i++) {
-    const arrowGeo = new THREE.ConeGeometry(0.3, 0.6, 8);
+    const arrowGeo = new THREE.ConeGeometry(0.35, 0.7, 8);
     const arrowMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
     const arrow = new THREE.Mesh(arrowGeo, arrowMat);
     const ang = (i * Math.PI) / 2;
-    arrow.position.set(Math.cos(ang) * 2.0, Math.sin(ang) * 2.0, 0);
+    arrow.position.set(Math.cos(ang) * 2.1, Math.sin(ang) * 2.1, 0);
     arrow.rotation.z = ang - Math.PI * 0.5;
     group.add(arrow);
   }
@@ -656,48 +768,47 @@ function createSpeedBoosterRing(): THREE.Group {
   return group;
 }
 
-// --- Grand Final Stadium (Level 50) ---
-function createGrandFinalStadium(finishPt: TrackPoint, points: TrackPoint[]): THREE.Group {
+// --- Grand Final Stadium / Trackside Grandstand Audience ---
+function createGrandFinalStadium(finishPt: TrackPoint, points: TrackPoint[], isFinal: boolean): THREE.Group {
   const stadium = new THREE.Group();
-
-  // Grandstands around final straight
-  const standMat = new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.5 });
+  const standMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.5, metalness: 0.4 });
   const seatMat1 = new THREE.MeshBasicMaterial({ color: 0xe11d48 });
   const seatMat2 = new THREE.MeshBasicMaterial({ color: 0x3b82f6 });
   const seatMat3 = new THREE.MeshBasicMaterial({ color: 0xeab308 });
+  const seatMat4 = new THREE.MeshBasicMaterial({ color: 0x10b981 });
 
-  // Left & Right Stadium Tier
-  [-12, 12].forEach(offsetX => {
-    const standGeo = new THREE.BoxGeometry(8, 6, 60);
+  // Stadium Stands along final stretch
+  [-11, 11].forEach(offsetX => {
+    const standGeo = new THREE.BoxGeometry(7, 5, 55);
     const stand = new THREE.Mesh(standGeo, standMat);
-    stand.position.set(finishPt.x + finishPt.binormal.x * offsetX, finishPt.y + 2, finishPt.z + finishPt.binormal.z * offsetX);
+    stand.position.set(finishPt.x + finishPt.binormal.x * offsetX, finishPt.y + 1.8, finishPt.z + finishPt.binormal.z * offsetX);
     stadium.add(stand);
 
-    // Colorful crowds (instanced cubes representing spectators)
+    // Spectators
     for (let row = 0; row < 3; row++) {
-      for (let col = -12; col < 12; col++) {
-        const crowdMat = (row + col) % 3 === 0 ? seatMat1 : (row + col) % 3 === 1 ? seatMat2 : seatMat3;
+      for (let col = -10; col < 10; col++) {
+        const crowdMat = (row + col) % 4 === 0 ? seatMat1 : (row + col) % 4 === 1 ? seatMat2 : (row + col) % 4 === 2 ? seatMat3 : seatMat4;
         const personGeo = new THREE.BoxGeometry(0.4, 0.6, 0.4);
         const person = new THREE.Mesh(personGeo, crowdMat);
         person.position.set(
-          finishPt.x + finishPt.binormal.x * (offsetX + (offsetX > 0 ? -row * 1.5 : row * 1.5)),
-          finishPt.y + 4 + row * 1.2,
-          finishPt.z + col * 2.2
+          finishPt.x + finishPt.binormal.x * (offsetX + (offsetX > 0 ? -row * 1.3 : row * 1.3)),
+          finishPt.y + 3.8 + row * 1.1,
+          finishPt.z + col * 2.4
         );
         stadium.add(person);
       }
     }
   });
 
-  // Floodlights
-  [-15, 15].forEach(offsetX => {
-    for (let zOffset of [-20, 0, 20]) {
-      const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 16, 8), standMat);
-      tower.position.set(finishPt.x + finishPt.binormal.x * offsetX, finishPt.y + 8, finishPt.z + zOffset);
+  // Trackside Tower Floodlights
+  [-14, 14].forEach(offsetX => {
+    for (let zOffset of [-18, 0, 18]) {
+      const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 14, 8), standMat);
+      tower.position.set(finishPt.x + finishPt.binormal.x * offsetX, finishPt.y + 7, finishPt.z + zOffset);
       stadium.add(tower);
 
-      const lamp = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 1.5), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-      lamp.position.set(finishPt.x + finishPt.binormal.x * offsetX, finishPt.y + 16, finishPt.z + zOffset);
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.8, 1.2), new THREE.MeshBasicMaterial({ color: isFinal ? 0xfef08a : 0xffffff }));
+      lamp.position.set(finishPt.x + finishPt.binormal.x * offsetX, finishPt.y + 14, finishPt.z + zOffset);
       stadium.add(lamp);
     }
   });
